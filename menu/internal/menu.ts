@@ -125,7 +125,7 @@ export abstract class Menu extends LitElement {
   /**
    * The tabindex of the underlying list element.
    */
-  @property({type: Number, attribute: 'list-tabindex'}) listTabIndex = 0;
+  @property({type: Number, attribute: 'list-tabindex'}) listTabindex = -1;
   /**
    * The role of the underlying list element.
    */
@@ -176,9 +176,12 @@ export abstract class Menu extends LitElement {
   skipRestoreFocus = false;
   /**
    * The element that should be focused by default once opened.
+   *
+   * NOTE: When setting default focus to 'LIST_ROOT', remember to change
+   * `list-tabindex` to `0` when necessary.
    */
   @property({attribute: 'default-focus'})
-  defaultFocus: DefaultFocusState = 'LIST_ROOT';
+  defaultFocus: DefaultFocusState = 'FIRST_ITEM';
 
   @state() private typeaheadActive = true;
 
@@ -304,7 +307,7 @@ export abstract class Menu extends LitElement {
           id="list"
           aria-label=${ariaLabel || nothing}
           type=${this.type}
-          listTabIndex=${this.listTabIndex}
+          .listTabindex=${this.listTabindex}
           @keydown=${this.handleListKeydown}>
         ${this.renderMenuItems()}
       </md-list>`;
@@ -386,7 +389,7 @@ export abstract class Menu extends LitElement {
    * Saves the last focused element focuses the new element based on
    * `defaultFocus`, and animates open.
    */
-  private readonly onOpened = () => {
+  private readonly onOpened = async () => {
     this.lastFocusedElement = getFocusedElement();
 
     if (!this.listElement) return;
@@ -398,6 +401,16 @@ export abstract class Menu extends LitElement {
       activeItemRecord.item.active = false;
     }
 
+    if (this.quick) {
+      this.dispatchEvent(new Event('opening'));
+      this.dispatchEvent(new Event('opened'));
+    } else {
+      await this.animateOpen();
+    }
+
+    // This must come after the opening animation or else it may focus one of
+    // the items before the animation has begun and causes the list to slide
+    // (block-padding-of-the-menu)px at the end of the animation
     switch (this.defaultFocus) {
       case 'FIRST_ITEM':
         const first = List.getFirstActivatableItem(items);
@@ -418,13 +431,6 @@ export abstract class Menu extends LitElement {
       case 'NONE':
         // Do nothing.
         break;
-    }
-
-    if (this.quick) {
-      this.dispatchEvent(new Event('opening'));
-      this.dispatchEvent(new Event('opened'));
-    } else {
-      this.animateOpen();
     }
   };
 
@@ -458,7 +464,7 @@ export abstract class Menu extends LitElement {
    *
    * https://direct.googleplex.com/#/spec/295000003+271060003
    */
-  private animateOpen() {
+  private async animateOpen() {
     const surfaceEl = this.surfaceEl;
     const slotEl = this.slotEl;
 
@@ -521,6 +527,11 @@ export abstract class Menu extends LitElement {
       childrenAnimations.push([child, animation]);
     }
 
+    let resolveAnimation = (value: boolean) => {};
+    const animationFinished = new Promise<boolean>((resolve) => {
+      resolveAnimation = resolve;
+    });
+
     signal.addEventListener('abort', () => {
       surfaceHeightAnimation.cancel();
       upPositionCorrectionAnimation.cancel();
@@ -529,13 +540,17 @@ export abstract class Menu extends LitElement {
         child.classList.toggle('md-menu-hidden', false);
         animation.cancel();
       });
+      resolveAnimation(true);
     });
 
     surfaceHeightAnimation.addEventListener('finish', () => {
       surfaceEl.classList.toggle('animating', false);
       this.openCloseAnimationSignal.finish();
       this.dispatchEvent(new Event('opened'));
+      resolveAnimation(false);
     });
+
+    return animationFinished;
   }
 
   /**

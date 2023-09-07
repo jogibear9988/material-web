@@ -39,12 +39,12 @@ const collection =
         }),
       }),
       new Knob('defaultFocus', {
-        defaultValue: 'LIST_ROOT' as const,
+        defaultValue: 'FIRST_ITEM' as const,
         ui: selectDropdown<DefaultFocusState>({
           options: [
-            {label: 'LIST_ROOT', value: 'LIST_ROOT'},
             {label: 'FIRST_ITEM', value: 'FIRST_ITEM'},
             {label: 'LAST_ITEM', value: 'LAST_ITEM'},
+            {label: 'LIST_ROOT', value: 'LIST_ROOT'},
             {label: 'NONE', value: 'NONE'},
           ]
         }),
@@ -89,7 +89,7 @@ const collection =
         defaultValue: 200,
         ui: numberInput(),
       }),
-      new Knob('listTabIndex', {
+      new Knob('listTabindex', {
         defaultValue: 0,
         ui: numberInput(),
       }),
