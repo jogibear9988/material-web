@@ -20,7 +20,8 @@ export class TabHarness extends Harness<Tab> {
 
   private async completeIndicatorAnimation() {
     await this.element.updateComplete;
-    const animations = this.element.indicator.getAnimations();
+    const indicator = this.element.renderRoot.querySelector('.indicator')!;
+    const animations = indicator.getAnimations();
     for (const animation of animations) {
       animation.finish();
     }
@@ -28,7 +29,8 @@ export class TabHarness extends Harness<Tab> {
 
   async isIndicatorShowing() {
     await this.completeIndicatorAnimation();
-    const opacity = getComputedStyle(this.element.indicator)['opacity'];
+    const indicator = this.element.renderRoot.querySelector('.indicator')!;
+    const opacity = getComputedStyle(indicator)['opacity'];
     return opacity === '1';
   }
 }
@@ -51,9 +53,8 @@ export class TabsHarness extends Harness<Tabs> {
   get harnessedItems() {
     // Test access to protected property
     // tslint:disable-next-line:no-dict-access-on-struct-type
-    return (this.element['items'] as Array<ElementWithHarness<Tab>>)
-        .map(item => {
-          return (item.harness ?? new TabHarness(item)) as TabHarness;
-        });
+    return (this.element.tabs as Array<ElementWithHarness<Tab>>).map(item => {
+      return (item.harness ?? new TabHarness(item)) as TabHarness;
+    });
   }
 }
