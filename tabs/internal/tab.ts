@@ -8,18 +8,24 @@ import '../../elevation/elevation.js';
 import '../../focus/md-focus-ring.js';
 import '../../ripple/ripple.js';
 
-import {html, isServer, LitElement, nothing, PropertyValues} from 'lit';
+import {html, isServer, LitElement, nothing} from 'lit';
 import {property, query, queryAssignedElements, queryAssignedNodes, state} from 'lit/decorators.js';
 import {classMap} from 'lit/directives/class-map.js';
 
 import {polyfillElementInternalsAria, setupHostAria} from '../../internal/aria/aria.js';
 import {EASING} from '../../internal/motion/animation.js';
 
-interface Tabs extends HTMLElement {
-  selected?: number;
-  selectedItem?: Tab;
-  previousSelectedItem?: Tab;
-}
+/**
+ * Symbol for tabs to use to animate their indicators based off another tab's
+ * indicator.
+ */
+const INDICATOR = Symbol('indicator');
+
+/**
+ * Symbol used by the tab bar to request a tab to animate its indicator from a
+ * previously selected tab.
+ */
+export const ANIMATE_INDICATOR = Symbol('animateIndicator');
 
 /**
  * Tab component.
@@ -30,9 +36,21 @@ export class Tab extends LitElement {
   }
 
   /**
-   * Whether or not the tab is `selected`.
+   * Whether or not the tab is selected.
    **/
-  @property({type: Boolean, reflect: true}) selected = false;
+  @property({type: Boolean, reflect: true}) active = false;
+
+  /**
+   * TODO(b/293476210): remove after migrating
+   * @deprecated use `active`
+   */
+  @property({type: Boolean})
+  get selected() {
+    return this.active;
+  }
+  set selected(active: boolean) {
+    this.active = active;
+  }
 
   /**
    * In SSR, set this to true when an icon is present.
@@ -44,9 +62,7 @@ export class Tab extends LitElement {
    */
   @property({type: Boolean, attribute: 'icon-only'}) iconOnly = false;
 
-  // note, this is public so it can participate in selection animation.
-  /** @private */
-  @query('.indicator') readonly indicator!: HTMLElement;
+  @query('.indicator') readonly[INDICATOR]!: HTMLElement|null;
   @state() protected fullWidthIndicator = false;
   @queryAssignedNodes({flatten: true})
   private readonly assignedDefaultNodes!: Node[];
@@ -88,11 +104,8 @@ export class Tab extends LitElement {
     };
   }
 
-  protected override updated(changed: PropertyValues) {
-    if (changed.has('selected')) {
-      this.internals.ariaSelected = String(this.selected);
-      this.animateSelected();
-    }
+  protected override updated() {
+    this.internals.ariaSelected = String(this.active);
   }
 
   private async handleKeydown(event: KeyboardEvent) {
@@ -109,32 +122,33 @@ export class Tab extends LitElement {
     }
   }
 
-  private animateSelected() {
-    this.indicator.getAnimations().forEach(a => {
+  [ANIMATE_INDICATOR](previousTab: Tab|null) {
+    if (!this[INDICATOR]) {
+      return;
+    }
+
+    this[INDICATOR].getAnimations().forEach(a => {
       a.cancel();
     });
-    const frames = this.getKeyframes();
+    const frames = this.getKeyframes(previousTab);
     if (frames !== null) {
-      this.indicator.animate(
+      this[INDICATOR].animate(
           frames, {duration: 250, easing: EASING.EMPHASIZED});
     }
   }
 
-  private getKeyframes() {
+  private getKeyframes(previousTab: Tab|null) {
     const reduceMotion = shouldReduceMotion();
-    if (!this.selected) {
+    if (!this.active) {
       return reduceMotion ? [{'opacity': 1}, {'transform': 'none'}] : null;
     }
 
-    // TODO(b/298105040): avoid hardcoding selector
-    const tabs = this.closest<Tabs>('md-tabs');
     const from: Keyframe = {};
     const fromRect =
-        (tabs?.previousSelectedItem?.indicator.getBoundingClientRect() ??
-         ({} as DOMRect));
+        previousTab?.[INDICATOR]?.getBoundingClientRect() ?? ({} as DOMRect);
     const fromPos = fromRect.left;
     const fromExtent = fromRect.width;
-    const toRect = this.indicator.getBoundingClientRect();
+    const toRect = this[INDICATOR]!.getBoundingClientRect();
     const toPos = toRect.left;
     const toExtent = toRect.width;
     const scale = fromExtent / toExtent;

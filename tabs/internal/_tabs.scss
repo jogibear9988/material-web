@@ -28,6 +28,7 @@
     align-items: end;
     display: flex;
     height: 100%;
+    overflow: inherit;
     justify-content: space-between;
     width: 100%;
   }
@@ -38,7 +39,7 @@
 
   // draw selected on top so its indicator can be transitioned from the
   // previously selected tab, on top of it
-  ::slotted([selected]) {
+  ::slotted([active]) {
     z-index: 1;
   }
 }

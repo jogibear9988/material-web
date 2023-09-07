@@ -11,7 +11,7 @@ import {property, queryAssignedElements, state} from 'lit/decorators.js';
 
 import {polyfillElementInternalsAria, setupHostAria} from '../../internal/aria/aria.js';
 
-import {Tab} from './tab.js';
+import {ANIMATE_INDICATOR, Tab} from './tab.js';
 
 const NAVIGATION_KEYS = new Map([
   ['default', new Set(['Home', 'End'])],
@@ -48,6 +48,13 @@ export class Tabs extends LitElement {
   }
 
   /**
+   * The tabs of this tab bar.
+   */
+  get tabs() {
+    return this.maybeTabItems.filter(isTab);
+  }
+
+  /**
    * Index of the selected item.
    */
   @property({type: Number}) selected = 0;
@@ -63,9 +70,6 @@ export class Tabs extends LitElement {
 
   @queryAssignedElements({flatten: true})
   private readonly maybeTabItems!: HTMLElement[];
-  private get items(): Tab[] {
-    return this.maybeTabItems.filter(isTab);
-  }
 
   // this tracks if items have changed, which triggers rendering so they can
   // be kept in sync
@@ -75,21 +79,21 @@ export class Tabs extends LitElement {
    * The item currently selected.
    */
   get selectedItem() {
-    return this.items[this.selected];
+    return this.tabs[this.selected];
   }
 
   /**
    * The item previously selected.
    */
-  get previousSelectedItem() {
-    return this.items[this.previousSelected];
+  private get previousSelectedItem() {
+    return this.tabs[this.previousSelected];
   }
 
   /**
    * The item currently focused.
    */
   private get focusedItem() {
-    return this.items.find((el: HTMLElement) => el.matches(':focus-within'));
+    return this.tabs.find((el: HTMLElement) => el.matches(':focus-within'));
   }
 
   private readonly internals = polyfillElementInternalsAria(
@@ -105,6 +109,48 @@ export class Tabs extends LitElement {
     }
   }
 
+  protected override willUpdate(changed: PropertyValues) {
+    if (changed.has('selected')) {
+      this.previousSelected = changed.get('selected') ?? -1;
+    }
+    if (this.itemsDirty) {
+      this.itemsDirty = false;
+      this.previousSelected = -1;
+    }
+  }
+
+  protected override render() {
+    return html`
+      <div class="tabs">
+        <slot @slotchange=${this.handleSlotChange} @click=${
+        this.handleItemClick}></slot>
+      </div>
+      <md-divider part="divider"></md-divider>
+    `;
+  }
+
+  protected override async updated(changed: PropertyValues) {
+    const itemsChanged = changed.has('itemsDirty');
+    // sync state with items.
+    if (itemsChanged) {
+      this.tabs.forEach((item, i) => {
+        item.active = this.selected === i;
+      });
+    }
+    if (itemsChanged || changed.has('selected')) {
+      if (this.previousSelectedItem && this.selectedItem &&
+          this.previousSelectedItem !== this.selectedItem) {
+        this.previousSelectedItem.active = false;
+        this.selectedItem.active = true;
+        this.selectedItem[ANIMATE_INDICATOR](this.previousSelectedItem);
+      }
+      if (this.selectedItem !== this.focusedItem) {
+        this.updateFocusableItem(this.selectedItem);
+      }
+      await this.scrollItemIntoView();
+    }
+  }
+
   // focus item on keydown and optionally select it
   private readonly handleKeydown = async (event: KeyboardEvent) => {
     const {key} = event;
@@ -116,19 +162,19 @@ export class Tabs extends LitElement {
     }
     let indexToFocus = -1;
     const focused = this.focusedItem ?? this.selectedItem;
-    const itemCount = this.items.length;
+    const itemCount = this.tabs.length;
     const isPrevKey = key === 'ArrowLeft' || key === 'ArrowUp';
     if (key === 'Home') {
       indexToFocus = 0;
     } else if (key === 'End') {
       indexToFocus = itemCount - 1;
     } else {
-      const focusedIndex = this.items.indexOf(focused) || 0;
+      const focusedIndex = this.tabs.indexOf(focused) || 0;
       indexToFocus = focusedIndex + (isPrevKey ? -1 : 1);
       indexToFocus =
           indexToFocus < 0 ? itemCount - 1 : indexToFocus % itemCount;
     }
-    const itemToFocus = this.items[indexToFocus];
+    const itemToFocus = this.tabs[indexToFocus];
     if (itemToFocus !== null && itemToFocus !== focused) {
       this.updateFocusableItem(itemToFocus);
       itemToFocus.focus();
@@ -150,7 +196,7 @@ export class Tabs extends LitElement {
     const nowFocused =
         (this.getRootNode() as unknown as DocumentOrShadowRoot).activeElement as
         Tab;
-    if (this.items.indexOf(nowFocused) === -1) {
+    if (this.tabs.indexOf(nowFocused) === -1) {
       this.updateFocusableItem(this.selectedItem);
     }
   };
@@ -195,50 +241,10 @@ export class Tabs extends LitElement {
     this.dispatchEvent(event);
   }
 
-  protected override willUpdate(changed: PropertyValues) {
-    if (changed.has('selected')) {
-      this.previousSelected = changed.get('selected') ?? -1;
-    }
-    if (this.itemsDirty) {
-      this.itemsDirty = false;
-      this.previousSelected = -1;
-    }
-  }
-
-  protected override async updated(changed: PropertyValues) {
-    const itemsChanged = changed.has('itemsDirty');
-    // sync state with items.
-    if (itemsChanged) {
-      this.items.forEach((item, i) => {
-        item.selected = this.selected === i;
-      });
-    }
-    if (itemsChanged || changed.has('selected')) {
-      if (this.previousSelectedItem !== this.selectedItem) {
-        this.previousSelectedItem?.removeAttribute('selected');
-        this.selectedItem?.setAttribute('selected', '');
-      }
-      if (this.selectedItem !== this.focusedItem) {
-        this.updateFocusableItem(this.selectedItem);
-      }
-      await this.scrollItemIntoView();
-    }
-  }
-
   private updateFocusableItem(focusableItem: HTMLElement|null) {
-    for (const item of this.items) {
+    for (const item of this.tabs) {
       item.tabIndex = item === focusableItem ? 0 : -1;
     }
-  }
-
-  protected override render() {
-    return html`
-      <div class="tabs">
-        <slot @slotchange=${this.handleSlotChange} @click=${
-        this.handleItemClick}></slot>
-      </div>
-      <md-divider part="divider"></md-divider>
-    `;
   }
 
   private async handleItemClick(event: Event) {
@@ -247,7 +253,7 @@ export class Tabs extends LitElement {
       return;
     }
     const item = (target as Element).closest(`${this.localName} > *`) as Tab;
-    const i = this.items.indexOf(item);
+    const i = this.tabs.indexOf(item);
     if (i > -1 && this.selected !== i) {
       this.selected = i;
       this.updateFocusableItem(this.selectedItem);
@@ -263,7 +269,7 @@ export class Tabs extends LitElement {
   }
 
   private async itemsUpdateComplete() {
-    for (const item of this.items) {
+    for (const item of this.tabs) {
       await item.updateComplete;
     }
     return true;
