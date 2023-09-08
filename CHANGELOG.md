@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.0](https://github.com/material-components/material-web/compare/v1.0.0-pre.17...v1.0.0) (2023-09-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* **textfield:** replace slot names `leadingicon` and `trailingicon` with `leading-icon` and `trailing-icon`
+* **select:** replace `leadingicon` and `trailingicon` slot names with `leading-icon` and `trailing-icon`
+* **navigationtab:** change slot names activeIcon and inactiveIcon to active-icon and inactive-icon
+
+### Features
+
+* **menu:** menus will resize and flip corners to stay in viewport ([235a203](https://github.com/material-components/material-web/commit/235a2033d7e492e5ed245e7a81b0082e8ecd35ac))
+
+
+### Bug Fixes
+
+* **iconbutton:** allow prevent default click for toggles ([ed539c6](https://github.com/material-components/material-web/commit/ed539c6853cc6f1c6e5f3b2c40f06e83c779c3e5)), closes [#4857](https://github.com/material-components/material-web/issues/4857)
+* **menu:** allow submenus to close when focus is lost ([7a19c7e](https://github.com/material-components/material-web/commit/7a19c7e97a40103e65697c1f669d887b176f1cc6))
+* **menu:** fix submenus on mobile ([368991c](https://github.com/material-components/material-web/commit/368991ce306e904959a5d53e49293a8a683c46a1))
+* **menu:** update default min width to spec and allow max-width to inherit ([2e25bf8](https://github.com/material-components/material-web/commit/2e25bf8ce2979de4a5bccabc244fd4ca715ecebc))
+* **navigationtab:** change slot names activeIcon and inactiveIcon to active-icon and inactive-icon ([f019ac3](https://github.com/material-components/material-web/commit/f019ac37fe07da0a0a75821ce955dc6c6cbdc3c9))
+* **select:** change slot names to kebab-case ([059dad5](https://github.com/material-components/material-web/commit/059dad5d44ed43f4c84e754ce73f10b24bbbd1ae))
+* **textfield:** change slot names to kebab-case ([82e9e92](https://github.com/material-components/material-web/commit/82e9e92a19b82c401d2d878b2a713fbd773b1ad6))
+
+
+### Miscellaneous Chores
+
+* prep release version ([df508ef](https://github.com/material-components/material-web/commit/df508ef5fdd1494bf6a3c567d9ac82da978fb8e0))
+
 ## [1.0.0-pre.17](https://github.com/material-components/material-web/compare/v1.0.0-pre.16...v1.0.0-pre.17) (2023-09-06)
 
 
